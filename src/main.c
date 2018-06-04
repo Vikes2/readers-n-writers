@@ -46,7 +46,7 @@ void initParams(int argc, char** argv)
                 writersInit(readers,writers);
                 break;
             case 'N':
-                //bothInit(*readers,*writers);
+                bothInit(readers,writers);
                 break;
             default: /* '?' */
                 fprintf(stderr, "Usage: %s amount_readers amount_writers [-R/-W/-N]\n", argv[0]);

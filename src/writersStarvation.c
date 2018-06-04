@@ -43,7 +43,6 @@ void writersInit(int* readers,int* writers){
 void* readerActionW(void* args){
     
     struct args_structW *arg = (struct args_structW *) args;
-    printf("============= %d ====================\n",arg->writersInside);
     
     while(1){
 

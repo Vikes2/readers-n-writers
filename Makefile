@@ -7,10 +7,10 @@ LDIR =lib
 
 LIBS=-lm -pthread
 
-_DEPS = readersStarvation.h writersStarvation.h noStarvation.h
+_DEPS = readersStarvation.h writersStarvation.h noStarvation.h priorityQ.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = main.o readersStarvation.o writersStarvation.o noStarvation.o
+_OBJ = main.o readersStarvation.o writersStarvation.o noStarvation.o priorityQ.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 lib: $(OBJ)
