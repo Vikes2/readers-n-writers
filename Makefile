@@ -5,20 +5,20 @@ CFLAGS=-I $(IDIR)
 ODIR=obj
 LDIR =lib
 
-LIBS=-lm
+LIBS=-lm -pthread
 
-_DEPS = 
+_DEPS = readersStarvation.h writersStarvation.h noStarvation.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-_OBJ = main.o
+_OBJ = main.o readersStarvation.o writersStarvation.o noStarvation.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 lib: $(OBJ)
 	gcc -o $@ $^ $(CFLAGS) $(LIBS)
-	gcc -o test/sync $^ $(CFLAGS) $(LIBS)
+	gcc -o test/lib $^ $(CFLAGS) $(LIBS)
 
 test: $(OBJ)
-	gcc -o test/sync $^ $(CFLAGS) $(LIBS)
+	gcc -o test/lib $^ $(CFLAGS) $(LIBS)
 
 $(ODIR)/%.o: $(IDIR)/%.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
