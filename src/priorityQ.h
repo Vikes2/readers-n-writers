@@ -8,12 +8,12 @@
 #include <utime.h>
 
 typedef struct priority_sem_s {
-	int value; // if negative, abs(sem->value) == no. of waiting threads
-	pthread_mutex_t mutex;
-	pthread_cond_t cv;
-	int* prio_waiting; // no. waiting (blocked) at each priority
-	int* prio_released; // no. waiters released (unblocked) at each priority
-	int threadsCount;
+	int value; // jeżeli liczba jest ujemna to wartosc bezwzgledna jest liczbą wątków w kolejce
+	pthread_mutex_t mutex; //semaphore binarny
+	pthread_cond_t cv; //zmienna warunkowa
+	int* prio_waiting; // liczba czekających(zablokowanych wątków) na każdym priorytecie [priority]
+	int* prio_released; // liczba odblokowanych wątków które byly zablokowane na każdym priorytecie
+	int threadsCount; // liczba wątków
 } priosem_t;
 
 int Post(priosem_t* sem);

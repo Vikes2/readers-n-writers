@@ -7,6 +7,12 @@
 
 void initParams(int argc, char** argv);
 
+//funkcja inicjujaca parametry programu
+// param: 
+//      -nazwa funkcji
+//      - liczba czytelników
+//      - liczba pisarzy
+//      - option [-R/-W/-N] readersStarvation, writerStarvation, noStarvation
 void initParams(int argc, char** argv)
 {
     int opt;
@@ -15,7 +21,8 @@ void initParams(int argc, char** argv)
     int *writers = (int*)malloc(sizeof(int));
     *readers = atoi(argv[1]);
     *writers = atoi(argv[2]);
-
+    
+    // Walidacja parametrów
     if(argc < 4) //at least 4 arguments are necessary, e.g. ./lib 10 4 -R
     {
         fprintf(stderr, "Usage: %s amount_readers amount_writers [-R/-W/-N]\n", argv[0]);
@@ -34,7 +41,7 @@ void initParams(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
-
+    // wybranie opcji
     while ((opt = getopt(argc, argv, "RWN")) != -1)
     {
         switch(opt)

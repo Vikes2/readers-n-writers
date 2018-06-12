@@ -7,10 +7,12 @@
 #include <unistd.h>
 #include <utime.h>
 
+// Deklaracja zmiennych wątków oraz składowych monitora: mutexu oraz zmiennych warunkowych
 pthread_t *readersThread, *writersThread;
 pthread_mutex_t m;
 pthread_cond_t readersQ, writersQ;
 
+// Deklaracja struktury zawierającej status czytelni oraz kolejki
 struct args_struct{
     int readersInside;
     int writersInside;

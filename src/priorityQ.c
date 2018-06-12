@@ -1,48 +1,52 @@
 #include "priorityQ.h"
 
 int Post(priosem_t *sem) {
+	//monitor zwalniający wątek z kolejki
 	if (Lock(&(sem->mutex)) == -1) {
 		return -1;
 	}
 
-	sem->value++;
+	sem->value++; // Zmniejsza liczbę wątków zablokowanych w semaphorze (ile na minusie tyle w kolejce)
 
+	// Jeżeli jest jeszcze jakis czekający wątek
 	if (sem->value <= 0 && IsThreadWaiting(sem)) {
-		int prio = GetHighestWaitingPriority(sem);
+		int prio = GetHighestWaitingPriority(sem); //pobierany jest najwyższy priorytet kolejki
 
-		sem->prio_waiting[prio]--;
+		//Zmieniany jest stan kolejki
+		sem->prio_waiting[prio]--; 
 		sem->prio_released[prio]++;
 
+		//wysyłany jest sygnał dla innych wątków
 		if (Cond_broadcast(&(sem->cv), &(sem->mutex)) == 1) {
 			return -1;
 		}
 	}
-
+	//wyjście z monitora
 	if (Unlock(&(sem->mutex)) == -1) {
 		return -1;
 	}
 }
 
 int Wait(priosem_t *sem, int prio) {
+	//monitor dołączający wątek do kolejki
 	if (Lock(&(sem->mutex)) == -1) {
 		return -1;
 	}
 
-	sem->value--;
+	sem->value--; //zwiększona liczba zablokowanych wątków (dodano do kolejki)
 
-	if (sem->value < 0) {
-		// get in line
-		sem->prio_waiting[prio]++;
-		while (sem->prio_released[prio] < 0) {
+	if (sem->value < 0) { // Jeżeli są inne wątki czekające
+		sem->prio_waiting[prio]++; // zwiększenie statusu kolejki podanego priorytetu
+		while (sem->prio_released[prio] < 0) { //usypiany jest wątek do momentu  wypuszczenia wszystkich wątków na tym preiorytecie
 			if (Cond_wait(&(sem->cv), &(sem->mutex)) == -1) {
 				return -1;
 			}
 		}
 
-		// ok to leave
-		sem->prio_released[prio]--;
+		sem->prio_released[prio]--; //zwolnienie 
 	}
-
+	
+	//wyjście z monitora
 	if (Unlock(&(sem->mutex)) == -1) {
 		return -1;
 	}

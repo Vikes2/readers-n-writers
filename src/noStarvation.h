@@ -10,7 +10,7 @@
 
 
 
-
+// Deklaracja struktury zawierającej status czytelni oraz kolejki
 struct args_structB{
     int readersInside;
     int writersInside;
@@ -20,9 +20,9 @@ struct args_structB{
 
 pthread_t *readersThread, *writersThread;
 
-sem_t resourceAccess; // controls access (read/write) to the resource
-sem_t readCountAccess; // for syncing changes to shared variable readCount
-priosem_t serviceQueue; // FAIRNESS: preserves ordering of requests (signaling must be FIFO)
+sem_t resourceAccess; // semaphore liczebny kontrolujący pisarz oraz czytelników wchodzących do biblioteki
+sem_t readCountAccess; // semphore liczebny kontrolujący spójność zmiennych dotyczących czytelników
+priosem_t serviceQueue; // kolejka priorytetowa aktywująca wątki na podstawie priorytetu / sygnały przesyłane powinny byc FIFO
 
 
 

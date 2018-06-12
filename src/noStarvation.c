@@ -1,18 +1,23 @@
 #include "noStarvation.h"
 
-
+// funkcja inicjuje optymalne rozwiązanie (brak zagłodzenia)
+// param 
+// readers - liczba czytelników
+// writers - liczba pisarzy
 void bothInit(int* readers,int* writers) {
-    struct args_structB *arg =  (struct args_structB *)malloc(sizeof(struct args_structB));
+	
+	readersThread = (pthread_t*) malloc(*readers * sizeof(pthread_t)); // alokacja pamięci dla wątków czytelników
+    writersThread = (pthread_t*) malloc(*writers * sizeof(pthread_t)); // alokacja pamięci dla wątków pisarzy
     
+	struct args_structB *arg =  (struct args_structB *)malloc(sizeof(struct args_structB)); // alokacja pamięci dla struktury przechowującej argumenty
+    //wartości początkowe
 	arg->readersInside = 0;
 	arg->writersInside = 0;
 	arg->readersInQ = *readers;
 	arg->writersInQ = *writers;
 
-	readersThread = (pthread_t*) malloc(*readers * sizeof(pthread_t));
-    writersThread = (pthread_t*) malloc(*writers * sizeof(pthread_t));
 
-	//-------------
+	//------------- inicjacja kolejki priorytetowej oraz semaphorów
     serviceQueue.value = 1;
 	serviceQueue.threadsCount = *readers + *writers;
 	serviceQueue.prio_waiting = malloc(serviceQueue.threadsCount * sizeof(int));
@@ -47,7 +52,7 @@ void bothInit(int* readers,int* writers) {
 	}
     //---------------------
     
-	/* Create threads */
+    //tworzenie wątków oraz nadanie im funkcji odpowiadających za emitację aktywności pisarzy i czytelników
     for(int i=0 ;i < *writers; i++){
         pthread_create(&writersThread[i], NULL, &writerActionB, (void*)arg);
     }
@@ -56,105 +61,120 @@ void bothInit(int* readers,int* writers) {
         pthread_create(&readersThread[i], NULL, &readerActionB, (void*)arg);
     }   
 
+    // funkcja wstrymuje zakonczenie aktualnego wątku(main) oraz oczekuje na zakończenie pracy wątku czytelnika(czeka w nieskończoność)
     pthread_join(readersThread[0],NULL);
 
 	free(serviceQueue.prio_waiting);
 	free(serviceQueue.prio_released);
 }
 
+// funkcja emitująca pracę czytelnika
+// param:
+//  - struktura argumentów
 void* readerActionB(void* args){
-    struct args_structB *arg = (struct args_structB *) args;
+    struct args_structB *arg = (struct args_structB *) args; // rzutowanie na struct
     
 	while (1) {
-		if (Wait(&serviceQueue, GetHighestWaitingPriority(&serviceQueue)) == -1) {  //  Wait in line to be serviced
+		if (Wait(&serviceQueue, GetHighestWaitingPriority(&serviceQueue)) == -1) {  //  Czekanie w kolejce do momentu obsłużenia
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		};
 
-		if (sem_wait(&readCountAccess) == -1) { //  Request exclusive access to readCount
+		if (sem_wait(&readCountAccess) == -1) { //Blokowanie semaphora dla pozostałych wątków odpowiadającego za dostęp do stanu czytających
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
-
-		if (arg->readersInside == 0) { //  if there are no readers already reading
-			if (sem_wait(&resourceAccess) == -1) { //   request resource access for readers (writers blocked)
+		// Jeżeli nie ma żadnego czytelnika w czytelni, blokuj dostęp dla pisarzy
+		if (arg->readersInside == 0) { 
+			if (sem_wait(&resourceAccess) == -1) { 
 				printf("Błąd: %s", strerror(errno));
 				exit(EXIT_FAILURE);
 			}
 		}
 
-		arg->readersInside++; //  Increase the number of readers inside
-		arg->readersInQ--; //  Decrease the number of readers in queue
+        // zmiana zmiennych reprezetujących stan kolejki oraz czytelni
+		arg->readersInside++; 
+		arg->readersInQ--; 
 		printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", arg->readersInQ, arg->writersInQ, arg->readersInside, arg->writersInside);
 
-		if (Post(&serviceQueue) == -1) { //  let next in line be serviced
+		if (Post(&serviceQueue) == -1) { //  Zwolnienie kolejki oraz wysłanie sygnału do wszystkich czekających
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
-		if (sem_post(&readCountAccess) == -1) { //  release access to readCount
+		if (sem_post(&readCountAccess) == -1) { //  odblokowanie semaphora kontrolującego dostęp do stanu czytających
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
-		sleep(1); // Simulate reading
+		sleep(1); // Emitacja czytania
+		//Czytelnik wychodzi	
 
-		if (sem_wait(&readCountAccess) == -1) { //  request exclusive access to readCount
+		if (sem_wait(&readCountAccess) == -1) { //  Blokowanie semaphora kontrolującego dostęp do stanu czytających
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
-		arg->readersInside--; //  Increase the number of readers inside
-		arg->readersInQ++; //  Increase the number of readers in queue
+		// zmiana zmiennych reprezetujących stan kolejki oraz czytelni
+		arg->readersInside--; 
+		arg->readersInQ++; 
 		printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", arg->readersInQ, arg->writersInQ, arg->readersInside, arg->writersInside);
 
-		if (arg->readersInside == 0) { // if there are no readers left
-			if (sem_post(&resourceAccess) == -1) { //  request exclusive access to readCount
+		//Jeżeli był to ostatni czytelnik odblokuj dostęp dla pisarzy
+		if (arg->readersInside == 0) { 
+			if (sem_post(&resourceAccess) == -1) { 
 				printf("Błąd: %s", strerror(errno));
 				exit(EXIT_FAILURE);
 			}
 		}
 
-		if (sem_post(&readCountAccess) == -1) { //  release access to readCount
+		//  odblokowanie semaphora kontrolującego dostęp do stanu czytających
+		if (sem_post(&readCountAccess) == -1) { 
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
 }
 
+// funkcja emitująca pracę pisarza
+// param:
+//  - struktura argumentów
 void* writerActionB(void* args){
-    struct args_structB *arg = (struct args_structB *) args;
+    struct args_structB *arg = (struct args_structB *) args; // rzutowanie na struct
     
 	while (1) {
-		if (Wait(&serviceQueue, GetHighestWaitingPriority(&serviceQueue)) == -1) {  //  Wait in line to be serviced
+		if (Wait(&serviceQueue, GetHighestWaitingPriority(&serviceQueue)) == -1) {  //  Czekanie w kolejce do momentu obsłużenia
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		};
 
-		if (sem_wait(&resourceAccess) == -1) { //  request exclusive access to resource
+		if (sem_wait(&resourceAccess) == -1) { //  blokuje dostęp do czytelni dla wszystkich innych
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
-		if (Post(&serviceQueue) == -1) { //  let next in line be serviced
+		if (Post(&serviceQueue) == -1) { //  Zwolnienie kolejki oraz wysłanie sygnału do wszystkich czekających
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
-		arg->writersInside++; //  Increase the number of writers inside
-		arg->writersInQ--; //  Decrease the number of writers in queue
+		// zmiana zmiennych reprezetujących stan kolejki oraz czytelni
+		arg->writersInside++; 
+		arg->writersInQ--; 
 
 		printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", arg->readersInQ, arg->writersInQ, arg->readersInside, arg->writersInside);
         
-		sleep(1);
+		sleep(1); //Emitacja pisania
 
-		arg->writersInside--; //  Decrease the number of writers inside
-		arg->writersInQ++; //  Increase the number of writers in queue
+		//Wyjście pisarza
+
+		arg->writersInside--; 
+		arg->writersInQ++;
 
 		printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", arg->readersInQ, arg->writersInQ, arg->readersInside, arg->writersInside);
         
-
-		if (sem_post(&resourceAccess) == -1) { // release resource access for next reader/writer
+		//Zwalniany semaphore dla innych czekających w kolejce
+		if (sem_post(&resourceAccess) == -1) { 
 			printf("Błąd: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
